@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Test scène</title>
+<style>
+  body { margin:0; background:#000; overflow:hidden; }
+  canvas { display:block; width:100vw; height:100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Caméra simple (vue de dessus inclinée)
+const cam = { x: 0, y: 10, z: 10, yaw: 0 };
+
+function project(x, y, z) {
+  const dx = x - cam.x;
+  const dy = y - cam.y;
+  const dz = z - cam.z;
+  const cosY = Math.cos(-cam.yaw), sinY = Math.sin(-cam.yaw);
+  let rx = dx * cosY - dz * sinY;
+  let rz = dx * sinY + dz * cosY;
+  const pitch = -0.4;
+  const cosP = Math.cos(-pitch), sinP = Math.sin(-pitch);
+  let ry = dy * cosP - rz * sinP;
+  rz = dy * sinP + rz * cosP;
+  if (rz < 0.1) rz = 0.1;
+  return { x: W/2 + rx*600/rz, y: H/2 - ry*600/rz, z: rz };
+}
+
+function drawBox(cx, cy, cz, w, h, d, color) {
+  const x0 = cx-w/2, x1 = cx+w/2, y0 = cy, y1 = cy+h, z0 = cz-d/2, z1 = cz+d/2;
+  const faces = [
+    [[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],
+    [[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],
+    [[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]],
+    [[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]],
+    [[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]]
+  ];
+  const shades = [1.15, 0.95, 0.6, 0.78, 0.7];
+  for (let i = 0; i < faces.length; i++) {
+    const pts = faces[i].map(p => project(p[0], p[1], p[2]));
+    const r = Math.min(255, ((color>>16)&255) * shades[i]);
+    const g = Math.min(255, ((color>>8)&255) * shades[i]);
+    const b = Math.min(255, (color&255) * shades[i]);
+    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let j=1;j<pts.length;j++) ctx.lineTo(pts[j].x, pts[j].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.stroke();
+  }
+}
+
+// Chariot qui avance automatiquement
+let forkliftX = 0;
+let forkliftZ = 6;
+
+function render() {
+  // Fond
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#1a2535');
+  g.addColorStop(1,'#0a1018');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+
+  // Sol
+  ctx.fillStyle = '#3a4759';
+  const s = [project(-20,0,-20), project(20,0,-20), project(20,0,15), project(-20,0,15)];
+  ctx.beginPath();
+  ctx.moveTo(s[0].x, s[0].y);
+  for (let i=1;i<s.length;i++) ctx.lineTo(s[i].x, s[i].y);
+  ctx.closePath();
+  ctx.fill();
+
+  // Camion
+  drawBox(-12, 0.5, -16, 6, 3, 4, 0x4a5568);
+  // Palette dans le camion
+  drawBox(-12, 0.65, -16, 1.8, 0.15, 1.4, 0x8a5a2b);
+  drawBox(-12, 0.8, -16, 1.4, 1.0, 1.1, 0xc9a97a);
+  // Convoyeur
+  drawBox(10, 0, -8, 4, 0.8, 3, 0x4a5568);
+  drawBox(10, 0.8, -8, 4, 0.15, 3, 0x2d3542);
+
+  // Chariot (orange)
+  drawBox(forkliftX, 0.6, forkliftZ, 1.6, 1.2, 2.2, 0xd97706);
+  drawBox(forkliftX, 1.8, forkliftZ - 0.3, 1.2, 1.2, 1.2, 0x1e293b);
+
+  // Avancer tout seul
+  forkliftZ -= 0.02;
+  if (forkliftZ < -14) forkliftZ = 6;
+
+  requestAnimationFrame(render);
+}
+render();
+</script>
+</body>
+</html>
