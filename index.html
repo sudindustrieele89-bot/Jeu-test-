@@ -2,112 +2,155 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Test scène</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Test iPhone</title>
 <style>
-  body { margin:0; background:#000; overflow:hidden; }
-  canvas { display:block; width:100vw; height:100vh; }
+  html,body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#333; }
+  #diag { position:absolute; top:0; left:0; right:0; background:#c00; color:#fff;
+    padding:10px; font-family:monospace; font-size:13px; z-index:999;
+    display:none; white-space:pre-wrap; word-break:break-all; }
+  #diag.show { display:block; }
+  canvas { display:block; width:100%; height:100%; background:#2a3a4a; }
+  #info { position:absolute; top:10px; left:10px; background:#000a; color:#0f0;
+    padding:8px 12px; font-family:monospace; font-size:12px; z-index:10; border-radius:4px; }
 </style>
 </head>
 <body>
+<div id="diag"></div>
+<div id="info">Chargement...</div>
 <canvas id="c"></canvas>
+
 <script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-let W, H;
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+// Capture d'erreurs AVANT tout le reste
+const diagEl = document.getElementById('diag');
+const infoEl = document.getElementById('info');
+function showErr(msg) {
+  diagEl.textContent = '❌ ERREUR: ' + msg;
+  diagEl.classList.add('show');
 }
-window.addEventListener('resize', resize);
-resize();
+window.onerror = (msg, url, line) => { showErr(msg + ' ligne ' + line); return false; };
+window.addEventListener('unhandledrejection', e => showErr('Promise: ' + e.reason));
 
-// Caméra simple (vue de dessus inclinée)
-const cam = { x: 0, y: 10, z: 10, yaw: 0 };
+try {
+  // Dimensions robustes pour iPhone
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
 
-function project(x, y, z) {
-  const dx = x - cam.x;
-  const dy = y - cam.y;
-  const dz = z - cam.z;
-  const cosY = Math.cos(-cam.yaw), sinY = Math.sin(-cam.yaw);
-  let rx = dx * cosY - dz * sinY;
-  let rz = dx * sinY + dz * cosY;
-  const pitch = -0.4;
-  const cosP = Math.cos(-pitch), sinP = Math.sin(-pitch);
-  let ry = dy * cosP - rz * sinP;
-  rz = dy * sinP + rz * cosP;
-  if (rz < 0.1) rz = 0.1;
-  return { x: W/2 + rx*600/rz, y: H/2 - ry*600/rz, z: rz };
-}
+  function getSize() {
+    // Plusieurs sources, on prend la plus grande
+    const w = Math.max(
+      window.innerWidth || 0,
+      document.documentElement.clientWidth || 0,
+      window.visualViewport ? window.visualViewport.width : 0,
+      320
+    );
+    const h = Math.max(
+      window.innerHeight || 0,
+      document.documentElement.clientHeight || 0,
+      window.visualViewport ? window.visualViewport.height : 0,
+      480
+    );
+    return { w, h };
+  }
 
-function drawBox(cx, cy, cz, w, h, d, color) {
-  const x0 = cx-w/2, x1 = cx+w/2, y0 = cy, y1 = cy+h, z0 = cz-d/2, z1 = cz+d/2;
-  const faces = [
-    [[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],
-    [[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],
-    [[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]],
-    [[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]],
-    [[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]]
-  ];
-  const shades = [1.15, 0.95, 0.6, 0.78, 0.7];
-  for (let i = 0; i < faces.length; i++) {
-    const pts = faces[i].map(p => project(p[0], p[1], p[2]));
-    const r = Math.min(255, ((color>>16)&255) * shades[i]);
-    const g = Math.min(255, ((color>>8)&255) * shades[i]);
-    const b = Math.min(255, (color&255) * shades[i]);
-    ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+  let W, H, DPR;
+  function resize() {
+    const s = getSize();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = s.w;
+    H = s.h;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+
+  infoEl.textContent = `Canvas: ${canvas.width}×${canvas.height} | Écran: ${W}×${H} | DPR: ${DPR}`;
+
+  // Caméra et projection
+  const cam = { x: 0, y: 8, z: 12, yaw: 0 };
+  function project(x, y, z) {
+    const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+    const cosY = Math.cos(-cam.yaw), sinY = Math.sin(-cam.yaw);
+    let rx = dx * cosY - dz * sinY;
+    let rz = dx * sinY + dz * cosY;
+    const pitch = -0.4;
+    const cosP = Math.cos(-pitch), sinP = Math.sin(-pitch);
+    let ry = dy * cosP - rz * sinP;
+    rz = dy * sinP + rz * cosP;
+    if (rz < 0.1) rz = 0.1;
+    return { x: W/2 + rx*600/rz, y: H/2 - ry*600/rz, z: rz };
+  }
+
+  function drawBox(cx, cy, cz, w, h, d, color) {
+    const x0=cx-w/2, x1=cx+w/2, y0=cy, y1=cy+h, z0=cz-d/2, z1=cz+d/2;
+    const faces = [
+      { pts:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]], c:1.15 },
+      { pts:[[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]], c:0.95 },
+      { pts:[[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]], c:0.6 },
+      { pts:[[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]], c:0.78 },
+      { pts:[[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], c:0.7 }
+    ];
+    for (const f of faces) {
+      const pts = f.pts.map(p => project(p[0],p[1],p[2]));
+      const r = Math.min(255, ((color>>16)&255) * f.c);
+      const g = Math.min(255, ((color>>8)&255) * f.c);
+      const b = Math.min(255, (color&255) * f.c);
+      ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.stroke();
+    }
+  }
+
+  let z = 6;
+  let frameCount = 0;
+
+  function render() {
+    // Fond
+    ctx.fillStyle = '#1a2535';
+    ctx.fillRect(0, 0, W, H);
+
+    // Sol
+    ctx.fillStyle = '#3a4759';
+    const s = [project(-20,0,-20), project(20,0,-20), project(20,0,15), project(-20,0,15)];
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let j=1;j<pts.length;j++) ctx.lineTo(pts[j].x, pts[j].y);
+    ctx.moveTo(s[0].x, s[0].y);
+    for (let i=1;i<s.length;i++) ctx.lineTo(s[i].x, s[i].y);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.stroke();
+
+    // Objets
+    drawBox(-12, 0.5, -16, 6, 3, 4, 0x4a5568);   // camion
+    drawBox(-12, 0.65, -16, 1.8, 0.15, 1.4, 0x8a5a2b); // palette
+    drawBox(-12, 0.8, -16, 1.4, 1.0, 1.1, 0xc9a97a);
+    drawBox(10, 0, -8, 4, 0.8, 3, 0x4a5568);      // convoyeur
+    drawBox(z, 0.6, 6 - z, 1.6, 1.2, 2.2, 0xd97706); // chariot qui bouge
+
+    z -= 0.03;
+    if (z < -14) z = 6;
+
+    frameCount++;
+    if (frameCount % 30 === 0) {
+      infoEl.textContent = `✓ Rendu OK | ${W}×${H} | frame ${frameCount}`;
+    }
+
+    requestAnimationFrame(render);
   }
+
+  render();
+
+} catch(e) {
+  showErr(e.message);
 }
-
-// Chariot qui avance automatiquement
-let forkliftX = 0;
-let forkliftZ = 6;
-
-function render() {
-  // Fond
-  const g = ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#1a2535');
-  g.addColorStop(1,'#0a1018');
-  ctx.fillStyle = g;
-  ctx.fillRect(0,0,W,H);
-
-  // Sol
-  ctx.fillStyle = '#3a4759';
-  const s = [project(-20,0,-20), project(20,0,-20), project(20,0,15), project(-20,0,15)];
-  ctx.beginPath();
-  ctx.moveTo(s[0].x, s[0].y);
-  for (let i=1;i<s.length;i++) ctx.lineTo(s[i].x, s[i].y);
-  ctx.closePath();
-  ctx.fill();
-
-  // Camion
-  drawBox(-12, 0.5, -16, 6, 3, 4, 0x4a5568);
-  // Palette dans le camion
-  drawBox(-12, 0.65, -16, 1.8, 0.15, 1.4, 0x8a5a2b);
-  drawBox(-12, 0.8, -16, 1.4, 1.0, 1.1, 0xc9a97a);
-  // Convoyeur
-  drawBox(10, 0, -8, 4, 0.8, 3, 0x4a5568);
-  drawBox(10, 0.8, -8, 4, 0.15, 3, 0x2d3542);
-
-  // Chariot (orange)
-  drawBox(forkliftX, 0.6, forkliftZ, 1.6, 1.2, 2.2, 0xd97706);
-  drawBox(forkliftX, 1.8, forkliftZ - 0.3, 1.2, 1.2, 1.2, 0x1e293b);
-
-  // Avancer tout seul
-  forkliftZ -= 0.02;
-  if (forkliftZ < -14) forkliftZ = 6;
-
-  requestAnimationFrame(render);
-}
-render();
 </script>
 </body>
 </html>
