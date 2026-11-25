@@ -2,648 +2,304 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Mission Cariste</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escape Sécurité – L’Inspecteur des Docks</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent;
-    user-select:none; -webkit-user-select:none; }
-  html,body { width:100%; height:100%; overflow:hidden; background:#070b12;
-    font-family:'Courier New', ui-monospace, monospace; touch-action:none; }
-  #app { position:relative; width:100vw; height:100vh; }
-  canvas { display:block; width:100%; height:100%; touch-action:none; }
-
-  #hud { position:absolute; top:0; left:0; right:0; padding:10px 14px;
-    display:flex; justify-content:space-between; pointer-events:none; color:#e2e8f0;
-    padding-top:calc(10px + env(safe-area-inset-top)); }
-  .hud-box { background:rgba(8,15,26,.88); border:1px solid rgba(251,191,36,.3);
-    border-radius:6px; padding:7px 12px; }
-  #timer { font-size:16px; font-weight:700; letter-spacing:1px; color:#fbbf24; }
-  #step { font-size:9px; letter-spacing:1px; color:#94a3b8; margin-top:2px; }
-  #score { font-size:16px; font-weight:700; color:#4ade80; }
-  #errors { font-size:11px; color:#f87171; margin-top:2px; }
-
-  #objective { position:absolute; top:70px; left:50%; transform:translateX(-50%);
-    background:rgba(8,15,26,.9); border:1px solid #fbbf24; border-radius:6px;
-    padding:8px 16px; color:#fbbf24; font-size:12px; font-weight:700; letter-spacing:1px;
-    text-align:center; max-width:90vw; }
-  #objective.done { border-color:#22c55e; color:#4ade80; }
-
-  #feedback { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    font-size:16px; font-weight:700; letter-spacing:1px; text-align:center;
-    pointer-events:none; opacity:0; transition:opacity .3s; z-index:40;
-    padding:12px 20px; border-radius:8px; max-width:80vw; }
-  #feedback.show { opacity:1; }
-  #feedback.ok { background:rgba(22,163,74,.92); color:#fff; }
-  #feedback.ko { background:rgba(220,38,38,.92); color:#fff; }
-  #feedback.info { background:rgba(251,191,36,.92); color:#0a0e14; }
-
-  #controls { position:absolute; inset:0; pointer-events:none; }
-  #joystick { position:absolute; bottom:30px; left:30px; width:130px; height:130px;
-    border-radius:50%; background:rgba(8,15,26,.5); border:2px solid rgba(251,191,36,.35);
-    pointer-events:auto; touch-action:none;
-    bottom:calc(30px + env(safe-area-inset-bottom)); }
-  #stick { position:absolute; top:50%; left:50%; width:56px; height:56px;
-    border-radius:50%; background:rgba(251,191,36,.6); border:2px solid #fbbf24;
-    transform:translate(-50%,-50%); box-shadow:0 0 16px rgba(251,191,36,.5); }
-
-  .btn { position:absolute; width:70px; height:70px; border-radius:50%;
-    background:rgba(8,15,26,.7); border:2px solid #fbbf24; color:#fbbf24;
-    display:flex; align-items:center; justify-content:center; font-size:22px;
-    font-weight:700; font-family:inherit; pointer-events:auto; cursor:pointer;
-    flex-direction:column; line-height:1; }
-  .btn:active { background:rgba(251,191,36,.35); transform:scale(.95); }
-  .btn .lbl { font-size:8px; letter-spacing:1px; margin-top:2px; }
-
-  #btnUp { bottom:calc(200px + env(safe-area-inset-bottom)); right:30px; }
-  #btnDown { bottom:calc(120px + env(safe-area-inset-bottom)); right:30px; }
-  #btnHorn { bottom:calc(120px + env(safe-area-inset-bottom)); right:115px;
-    border-color:#f87171; color:#f87171; }
-  #btnAction { bottom:calc(40px + env(safe-area-inset-bottom)); right:30px;
-    width:90px; height:90px; border-color:#22c55e; color:#4ade80;
-    font-size:13px; opacity:.4; }
-  #btnAction.active { opacity:1; animation:pulseBtn 1s infinite; }
-  @keyframes pulseBtn { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}
-    50%{box-shadow:0 0 0 12px rgba(74,222,128,0)} }
-
-  #intro { position:absolute; inset:0; display:flex; flex-direction:column;
-    justify-content:center; align-items:center; text-align:center;
-    background:radial-gradient(circle at center, rgba(8,15,26,.97), rgba(2,6,12,.99));
-    color:#e2e8f0; padding:24px; z-index:50; overflow-y:auto; }
-  #intro h1 { font-size:clamp(20px,5vw,32px); letter-spacing:2px; margin-bottom:6px;
-    color:#fbbf24; text-shadow:0 0 20px rgba(251,191,36,.4); }
-  #intro .sub { font-size:10px; letter-spacing:2px; color:#64748b; margin-bottom:18px; }
-  #intro .mission { background:rgba(0,0,0,.35); border-left:3px solid #4ade80;
-    padding:12px 16px; border-radius:6px; margin:12px 0; text-align:left;
-    max-width:420px; font-size:12px; line-height:1.8; color:#cbd5e1; }
-  #intro .mission strong { color:#4ade80; }
-  .diff-title { font-size:12px; color:#fbbf24; letter-spacing:1px; margin:16px 0 10px; }
-  .diff-btns { display:flex; gap:12px; }
-  .diff-btns button { padding:14px 24px; font-family:inherit; font-size:13px;
-    font-weight:700; letter-spacing:1px; cursor:pointer; border-radius:6px;
-    background:transparent; border:2px solid; }
-  #diffFacile { border-color:#4ade80; color:#4ade80; }
-  #diffStrict { border-color:#f87171; color:#f87171; }
-
-  #bilan { position:absolute; inset:0; display:none; flex-direction:column;
-    justify-content:center; align-items:center; text-align:center;
-    background:radial-gradient(circle at center, rgba(10,40,20,.97), rgba(2,6,12,.99));
-    color:#e2e8f0; padding:20px; z-index:70; overflow-y:auto; }
-  #bilan.show { display:flex; }
-  #bilan h1 { font-size:clamp(18px,5vw,28px); letter-spacing:2px; margin-bottom:8px;
-    color:#4ade80; }
-  #bilan h1.fail { color:#f87171; }
-  #bilan .stats { font-size:13px; color:#cbd5e1; line-height:1.8; margin-bottom:12px; }
-  #bilan .legal { max-width:560px; background:rgba(0,0,0,.4); border-left:3px solid #22c55e;
-    padding:14px 18px; border-radius:4px; text-align:left; line-height:1.65;
-    font-size:11px; color:#cbd5e1; margin-top:8px; }
-  #bilan .legal strong { color:#4ade80; }
-  #bilan button { margin-top:16px; padding:12px 30px; border:1px solid #22c55e;
-    border-radius:4px; background:transparent; color:#4ade80; font-family:inherit;
-    font-weight:700; font-size:13px; letter-spacing:1px; cursor:pointer; }
+:root{--bg:#070b12;--card:#1e293b;--line:#475569;--tx:#e2e8f0;--mut:#cbd5e1;--gold:#fbbf24;--green:#4ade80;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#070b12}}
+*{margin:0;padding:0;box-sizing:inherit;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Courier New',ui-monospace,monospace;color:var(--tx)}
+#app{position:relative;width:100%;height:100%;overflow:hidden}
+#bg{position:absolute;inset:0;width:100%;height:100%;opacity:.6}
+#ui{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;pointer-events:none}
+#hud{display:flex;justify-content:space-between;gap:8px;padding:12px}
+.hb{background:rgba(8,15,26,.92);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+#st{font-size:13px;color:var(--gold);font-weight:bold}
+#ob{font-size:11px;color:var(--mut);margin-top:3px}
+#sc{font-size:18px;color:var(--green);font-weight:bold}
+#cb{display:flex;gap:6px;margin-top:8px}
+.cs{width:32px;height:38px;border:2px solid var(--line);border-radius:4px;display:flex;justify-content:center;align-items:center;font-size:18px;font-weight:bold;color:var(--green);background:rgba(15,23,42,.8)}
+.cs.f{border-color:var(--green);background:rgba(74,222,128,.2)}
+#scene{flex:1;position:relative}
+.ob{position:absolute;display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;transform:translate(-50%,-50%)}
+.ci{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold);background:rgba(8,15,26,.9);display:flex;justify-content:center;align-items:center;font-size:26px;animation:pl 2s infinite}
+.ci.d{border-color:#22c55e;animation:none;opacity:.55}
+.lb{font-size:10px;font-weight:bold;background:rgba(0,0,0,.9);padding:3px 7px;border-radius:4px;margin-top:4px;white-space:nowrap;border:1px solid var(--gold);color:var(--gold)}
+.lb.d{border-color:#22c55e;color:#22c55e;opacity:.6}
+#panel{position:absolute;inset:0;background:rgba(2,6,12,.92);z-index:40;display:none;justify-content:center;align-items:center;padding:16px}
+#panel.s{display:flex}
+#pb{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;max-width:480px;width:100%;max-height:92%;overflow-y:auto}
+.tag{font-size:10px;color:var(--gold);margin-bottom:8px}
+#pb h2{font-size:17px;margin-bottom:14px;color:#f8fafc;line-height:1.4}
+.qo{display:block;width:100%;text-align:left;padding:13px;background:#334155;border:1px solid var(--line);border-radius:8px;color:var(--tx);font:inherit;font-size:13px;cursor:pointer;margin-bottom:9px}
+.qo.ok{background:#14532d;border-color:#22c55e;color:#bbf7d0}
+.qo.ko{background:#450a0a;border-color:#ef4444;color:#fecaca}
+.fb{padding:11px;border-radius:6px;font-size:13px;margin:6px 0;display:none}
+.fb.s{display:block}
+.fb.ok{background:rgba(22,163,74,.15);border-left:3px solid #22c55e;color:#bbf7d0}
+.fb.ko{background:rgba(220,38,38,.15);border-left:3px solid #ef4444;color:#fecaca}
+.fb b{display:block;font-size:20px;color:var(--gold);text-align:center;margin-top:6px}
+.btn{background:var(--gold);color:#0f172a;border:0;padding:14px;border-radius:6px;font:inherit;font-weight:900;font-size:14px;cursor:pointer;width:100%;margin-top:8px}
+.btn.bs{background:transparent;color:#94a3b8;border:1px solid var(--line)}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:rgba(2,6,12,.97);z-index:50;padding:24px}
+.ov h1{font-size:clamp(22px,6vw,32px);color:var(--gold);margin-bottom:10px}
+.ov p{max-width:500px;color:var(--mut);margin-bottom:20px;font-size:14px;line-height:1.5}
+.ov button{background:var(--gold);color:#0f172a;border:0;padding:15px 34px;border-radius:8px;font:inherit;font-weight:900;font-size:15px;cursor:pointer}
+.hid{display:none!important}
+.cd{display:flex;justify-content:center;gap:8px;margin:14px 0 6px}
+.cd span{width:40px;height:50px;display:flex;justify-content:center;align-items:center;background:#0f172a;border:2px solid var(--line);border-radius:6px;font-size:22px;color:var(--green);font-weight:bold}
+.cd.er span{border-color:#ef4444;animation:sk .3s}
+.hint{font-size:11px;color:#94a3b8;text-align:center;margin-bottom:10px}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kp button{padding:13px;font:inherit;font-size:20px;font-weight:bold;background:var(--card);border:1px solid var(--line);border-radius:6px;color:var(--gold);cursor:pointer}
+.kp .c{background:#450a0a;border-color:#ef4444;color:#f87171}
+.kp .k{background:#14532d;border-color:#22c55e;color:var(--green)}
+.mb{pointer-events:auto;margin-top:6px;background:transparent;border:1px solid var(--line);color:var(--gold);border-radius:6px;padding:4px 8px;font:inherit;font-size:14px;cursor:pointer}
+.ov .mu{background:transparent;color:var(--gold);border:1px solid var(--gold);margin-top:12px;font-size:13px;padding:11px 20px}
+@keyframes pl{0%,100%{box-shadow:0 0 8px rgba(251,191,36,.4)}50%{box-shadow:0 0 22px rgba(251,191,36,.8)}}
+@keyframes sk{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 </style>
 </head>
 <body>
 <div id="app">
-  <canvas id="scene"></canvas>
-
-  <div id="hud">
-    <div class="hud-box">
-      <div id="timer">05:00</div>
-      <div id="step">RÉCEPTION</div>
-    </div>
-    <div class="hud-box" style="text-align:right">
-      <div style="font-size:9px;letter-spacing:1px;color:#94a3b8">SCORE</div>
-      <div id="score">0</div>
-      <div id="errors">Erreurs : 0</div>
-    </div>
-  </div>
-
-  <div id="objective">Prendre la palette dans le camion</div>
-  <div id="feedback"></div>
-
-  <div id="controls">
-    <div id="joystick"><div id="stick"></div></div>
-    <div class="btn" id="btnUp">▲<span class="lbl">FOURCHES</span></div>
-    <div class="btn" id="btnDown">▼<span class="lbl">FOURCHES</span></div>
-    <div class="btn" id="btnHorn">🔔<span class="lbl">KLAXON</span></div>
-    <div class="btn" id="btnAction">PRENDRE</div>
-  </div>
-
-  <div id="intro">
-    <h1>MISSION CARISTE</h1>
-    <div class="sub">RÉCEPTION · DÉPOSE CONVOYEUR</div>
-    <div class="mission">
-      <strong>Votre mission :</strong><br>
-      1. Conduire le chariot jusqu'au camion<br>
-      2. Prendre la palette dans la remorque<br>
-      3. La déposer sur le convoyeur (zone verte)<br><br>
-      <strong>Règles de sécurité :</strong><br>
-      • Klaxonner avant chaque marche arrière<br>
-      • Fourches basses pendant les déplacements<br>
-      • Ne pas rouler trop vite
-    </div>
-    <div class="diff-title">CHOISISSEZ LA DIFFICULTÉ</div>
-    <div class="diff-btns">
-      <button id="diffFacile">FACILE</button>
-      <button id="diffStrict">STRICT</button>
-    </div>
-  </div>
-
-  <div id="bilan">
-    <h1 id="bilanTitle">MISSION TERMINÉE</h1>
-    <div class="stats" id="bilanStats"></div>
-    <div class="legal">
-      <strong>CE QUE DIT LA LOI</strong><br><br>
-      <strong>Conduite d'engins (CACES) :</strong> la conduite d'un chariot élévateur exige une autorisation de conduite délivrée par l'employeur après formation et évaluation (recommandation CNAM R389, art. R4323-55 du Code du travail).<br><br>
-      <strong>Vérifications quotidiennes :</strong> l'opérateur doit contrôler l'état du chariot avant chaque prise de poste (freins, direction, avertisseur sonore, fourches).<br><br>
-      <strong>Droit d'alerte :</strong> tout salarié peut signaler une situation de danger grave et imminent (art. L4131-1). Le droit de retrait permet de se retirer d'une situation dangereuse sans sanction.
-    </div>
-    <button onclick="location.reload()">REJOUER</button>
-  </div>
+<canvas id="bg"></canvas>
+<div id="ui">
+ <div id="hud">
+  <div class="hb"><div id="st">SCÈNE 1</div><div id="ob">Inspecte les 5 indices</div><div id="cb"></div></div>
+  <div class="hb" style="text-align:right"><div style="font-size:9px;color:#94a3b8">SCORE</div><div id="sc">0</div><button class="mb" onclick="toggleMusic()" id="mt">🎵</button></div>
+ </div>
+ <div id="scene"></div>
 </div>
-
+<div id="panel"><div id="pb"></div></div>
+<div id="intro" class="ov"><h1>ESCAPE SÉCURITÉ</h1><p>L’Inspecteur des Docks : 10 scènes, 10 services, 50 quiz. Réponds aux quiz pour trouver les 5 chiffres du code, puis ouvre la porte de sortie.</p><button onclick="startGame()">COMMENCER</button><button class="mu" onclick="pickMusic()">🎵 CHOISIR MA MUSIQUE</button><input type="file" id="mf" accept="audio/*" hidden></div>
+<div id="es" class="ov hid"><h1>CODE VALIDÉ</h1><p id="esd"></p><button onclick="nextScene()">SCÈNE SUIVANTE</button></div>
+<div id="eg" class="ov hid"><h1>MISSION ACCOMPLIE</h1><p id="egt" style="color:#fbbf24;font-size:18px;font-weight:bold"></p><button onclick="location.reload()">REJOUER</button></div>
+</div>
 <script>
-// ============ AUDIO ============
-let audioCtx = null;
-function initAudio() {
-  try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-}
-function beep(freq=800, dur=0.1, type='sine', vol=0.15) {
-  if (!audioCtx) return;
-  try {
-    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(vol, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(); o.stop(audioCtx.currentTime + dur);
-  } catch(e) {}
-}
-function sfxHorn() { beep(300,.3,'square',.15); setTimeout(()=>beep(300,.3,'square',.15),100); }
-function sfxSuccess() { beep(660,.08); setTimeout(()=>beep(880,.15),80); }
-function sfxError() { beep(180,.25,'square',.12); }
-function sfxClick() { beep(1200,.03,'sine',.08); }
-
-let engineNode = null, engineGain = null;
-function startEngine() {
-  if (!audioCtx || engineNode) return;
-  try {
-    engineNode = audioCtx.createOscillator();
-    engineGain = audioCtx.createGain();
-    engineNode.type = 'sawtooth';
-    engineNode.frequency.value = 55;
-    engineGain.gain.value = 0;
-    engineNode.connect(engineGain); engineGain.connect(audioCtx.destination);
-    engineNode.start();
-  } catch(e) {}
-}
-function setEngineSpeed(speed) {
-  if (!engineNode || !engineGain) return;
-  try {
-    engineNode.frequency.value = 55 + Math.abs(speed) * 12;
-    engineGain.gain.value = Math.min(0.04, Math.abs(speed) * 0.008);
-  } catch(e) {}
+// ===== AUDIO =====
+let ac=null;
+function initAudio(){try{if(!ac)ac=new(window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume()}catch(e){}}
+function snd(t){
+ if(!ac||ac.state!=="running")return;
+ try{
+  const n=ac.currentTime;
+  const tone=(type,f1,f2,v,d)=>{const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.setValueAtTime(f1,n);if(f2)o.frequency.exponentialRampToValueAtTime(f2,n+d*.6);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(ac.destination);o.start(n);o.stop(n+d)};
+  if(t==="ok")tone("sine",600,1200,.1,.3);
+  else if(t==="ko")tone("square",200,150,.12,.4);
+  else if(t==="sniper"){
+   const L=ac.sampleRate*.5,b=ac.createBuffer(1,L,ac.sampleRate),d=b.getChannelData(0);
+   for(let i=0;i<L;i++)d[i]=Math.random()*2-1;
+   const s=ac.createBufferSource();s.buffer=b;
+   const f=ac.createBiquadFilter();f.type="lowpass";f.frequency.value=500;
+   const g=ac.createGain();g.gain.setValueAtTime(1,n);g.gain.exponentialRampToValueAtTime(.01,n+.4);
+   s.connect(f);f.connect(g);g.connect(ac.destination);s.start(n);
+   tone("sine",120,30,.8,.6);
+  }
+ }catch(e){}
 }
 
-// ============ CANVAS ============
-const canvas = document.getElementById('scene');
-const ctx = canvas.getContext('2d');
-let W = 0, H = 0, DPR = 1;
-function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth;
-  H = window.innerHeight;
-  canvas.width = W * DPR;
-  canvas.height = H * DPR;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+// ===== VUE DE DESSUS =====
+const cv=document.getElementById("bg"),cx=cv.getContext("2d");
+let W,H,Z,OX,OY;
+function rs(){
+ const D=Math.min(devicePixelRatio||1,2);
+ W=innerWidth;H=innerHeight;
+ cv.width=W*D;cv.height=H*D;cx.setTransform(D,0,0,D,0,0);
+ Z=Math.min(W,H)/35;OX=W/2;OY=H/2+50;
 }
-window.addEventListener('resize', resize);
-resize();
-
-// Caméra 3e personne
-const cam = { x:0, y:4.5, z:10, yaw:0 };
-const FOV = 700;
-function project(x, y, z) {
-  const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
-  const cosY = Math.cos(-cam.yaw), sinY = Math.sin(-cam.yaw);
-  let rx = dx * cosY - dz * sinY;
-  let rz = dx * sinY + dz * cosY;
-  const pitch = -0.35;
-  const cosP = Math.cos(-pitch), sinP = Math.sin(-pitch);
-  let ry = dy * cosP - rz * sinP;
-  rz = dy * sinP + rz * cosP;
-  if (rz < 0.1) rz = 0.1;
-  return { x: W/2 + rx*FOV/rz, y: H/2 - ry*FOV/rz, z: rz };
+addEventListener("resize",rs);rs();
+const pj=(x,z)=>({x:OX+x*Z,y:OY+z*Z});
+function box(x,z,w,d,c){
+ const p=pj(x-w/2,z-d/2);
+ cx.fillStyle=c;cx.fillRect(p.x,p.y,w*Z,d*Z);
+ cx.strokeStyle="rgba(0,0,0,.5)";cx.lineWidth=2;cx.strokeRect(p.x,p.y,w*Z,d*Z);
 }
-function shade(hex, factor) {
-  const r = Math.max(0, Math.min(255, ((hex>>16)&255)*factor));
-  const g = Math.max(0, Math.min(255, ((hex>>8)&255)*factor));
-  const b = Math.max(0, Math.min(255, (hex&255)*factor));
-  return `rgb(${r|0},${g|0},${b|0})`;
+function anim(ts){
+ cx.fillStyle="#0f172a";cx.fillRect(0,0,W,H);
+ const a=pj(-18,-18),b=pj(18,10);
+ cx.fillStyle="#1e293b";cx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);
+ cx.strokeStyle="#334155";cx.lineWidth=4;cx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
+ cx.strokeStyle="rgba(71,85,105,.2)";cx.lineWidth=1;
+ for(let i=-18;i<=18;i+=2){const p=pj(i,-18),q=pj(i,10);cx.beginPath();cx.moveTo(p.x,p.y);cx.lineTo(q.x,q.y);cx.stroke()}
+ for(let i=-18;i<=10;i+=2){const p=pj(-18,i),q=pj(18,i);cx.beginPath();cx.moveTo(p.x,p.y);cx.lineTo(q.x,q.y);cx.stroke()}
+ box(-8,-12,6,4,"#475569");box(-2,-9,4,2,"#94a3b8");box(8,-5,4,3,"#64748b");
+ const p=(ts/7000)%1,go=p<.5,u=go?p*2:2-p*2;
+ const fx=-8+16*u,fz=-10+5*u;
+ box(fx,fz,1.5,2,"#d97706");box(fx,fz+1.5,1,1,"#334155");
+ if(go)box(fx,fz+2.5,1.2,1.2,"#c9a97a");
+ else{box(8,-5,1.2,1.2,"#c9a97a");box(-8,-11,1.2,1.2,"#c9a97a")}
+ requestAnimationFrame(anim);
 }
+requestAnimationFrame(anim);
 
-// ============ SCÈNE ============
-let sceneObjects = [];
-let walls = [];
-let groundMarks = [];
+// ===== SCÈNES : [question, bonne réponse, faux 1, faux 2] =====
+const S=[
+{t:"RÉCEPTION",c:"20248",i:[["🧯","Extincteur"],["📋","Bon de livraison"],["👷","Chauffeur"],["🚧","Zone déchargement"],["📝","Registre"]],q:[
+["Où doit être installé un extincteur ?","Visible et accessible","Caché","Dans un bureau fermé"],
+["Que vérifier sur un bon de livraison ?","Le nombre de colis et la conformité","La couleur du camion","La météo"],
+["Avant de laisser entrer un chauffeur ?","Lui faire signer le registre","Le laisser passer","Lui demander de partir"],
+["Que baliser dans une zone de déchargement ?","La zone au sol","Rien","Juste l’entrée"],
+["Que trouve-t-on dans le registre de sécurité ?","Les dates de vérification","Les vacances","Les commandes"]]},
+{t:"CARISTE",c:"40144",i:[["🚜","Chariot"],["📦","Palette"],["👷","Piéton"],["📏","Hauteur"],["📝","Checklist"]],q:[
+["Hauteur des fourches en déplacement ?","À environ 15 cm du sol","Au plus haut","Au sol"],
+["Charge supérieure à la capacité du chariot ?","Ne pas la soulever","La soulever doucement","La soulever quand même"],
+["Un piéton traverse devant toi ?","T’arrêter","Klaxonner et passer","Accélérer"],
+["Où est ton plus grand angle mort ?","Arrière et côtés","L’avant","Le dessus"],
+["À vérifier avant de démarrer ?","Freins, direction, avertisseurs","Le carburant seulement","Rien"]]},
+{t:"PRÉPARATEUR",c:"13709",i:[["📦","Carton"],["🏷️","Étiquette"],["🚶","Déplacement"],["🧤","EPI"],["📋","Commande"]],q:[
+["Quels EPI sont obligatoires ?","Gants, chaussures, gilet","Casque lourd seulement","Aucun"],
+["Bonne posture pour porter ?","Jambes fléchies, dos droit","Jambes tendues","D’un coup sec"],
+["Pourquoi l’étiquetage est crucial ?","Éviter les erreurs de préparation","Faire joli","Aucune raison"],
+["Que signifie une ligne jaune ?","Voie piétonne","Zone de stockage","Zone de déchargement"],
+["Avant de manipuler un produit chimique ?","Lire la FDS et l’étiquette","Regarder la couleur","Peser le bidon"]]},
+{t:"CHARGEUR",c:"52831",i:[["🚛","Camion"],["📦","Palette"],["⚖️","Poids"],["🔗","Sangles"],["📝","Bon de livraison"]],q:[
+["Comment répartir les charges ?","Équilibrées sur les essieux","Tout au fond","D’un seul côté"],
+["Pourquoi arrimer les palettes ?","Éviter qu’elles glissent","Faire propre","Aucune raison"],
+["Poids supérieur à la capacité du camion ?","Répartir sur deux camions","Charger quand même","Enlever un carton"],
+["Comment communiquer avec le chauffeur ?","Par signaux convenus","En criant","L’ignorer"],
+["Avant de fermer les portes ?","Vérifier la stabilité","Rien","Laver le sol"]]},
+{t:"MAINTENANCE",c:"64275",i:[["🔧","Outil"],["⚡","Électrique"],["🛢️","Hydraulique"],["📝","Procédure"],["🔒","Consignation"]],q:[
+["Avant d’intervenir sur une machine ?","La consigner (couper, verrouiller, vérifier)","La laisser branchée","Juste la surveiller"],
+["Pour travailler en hauteur ?","Un escabeau conforme","Une chaise","Une palette"],
+["Fuite d’huile au sol ?","Baliser et signaler","L’ignorer","Éponger sans balisage"],
+["EPI pour la maintenance ?","Gants et lunettes","T-shirt","Aucun"],
+["Procédure inconnue ?","Demander avant d’agir","Improviser","Rentrer chez soi"]]},
+{t:"PALETTES VIDES",c:"39148",i:[["🧱","Palette"],["📏","Empilage"],["🚜","Chariot"],["🔄","Rotation"],["♻️","Recyclage"]],q:[
+["Jusqu’où empiler les palettes ?","Hauteur stable définie","Jusqu’au plafond","Le plus haut possible"],
+["Comment déplacer une pile ?","Avec un chariot adapté","À la main","Au pied"],
+["Que faire d’une palette cassée ?","La mettre au rebut","La remettre","La cacher"],
+["Où stocker les palettes vides ?","Zone dédiée","Dans les allées","Devant les issues"],
+["Pourquoi faire tourner le stock ?","Vérifier l’état","Faire joli","Aucune raison"]]},
+{t:"MAINTENANCE 2",c:"71836",i:[["⚡","Tableau électrique"],["🧪","Produit chimique"],["🔥","Point chaud"],["🧯","Extincteur"],["📞","Alarme"]],q:[
+["Devant un tableau électrique ?","Laisser l’accès dégagé","Poser des cartons","Le cacher"],
+["Produits chimiques incompatibles ?","Les stocker séparément","Les mélanger","Les ranger côte à côte"],
+["Avant une soudure ou un point chaud ?","Établir un permis de feu","Rien","Seulement de jour"],
+["Extincteur sur un feu électrique ?","CO2, pas d’eau","De l’eau","Peu importe"],
+["Début d’incendie ?","Alerter puis agir sans risque","Attendre","Filmer"]]},
+{t:"BUREAU",c:"25093",i:[["💻","Écran"],["🪑","Siège"],["📁","Dossiers"],["🔌","Câbles"],["🚪","Issue"]],q:[
+["Hauteur idéale de l’écran ?","Haut au niveau des yeux","Au sol","Au-dessus de la tête"],
+["Câbles qui traînent au sol ?","Les ranger ou les protéger","Les laisser","Les enjamber"],
+["Travail sur écran ?","Pauses régulières","Aucune pause","Une pause par jour"],
+["Issue de secours ?","Toujours dégagée","Verrouillée","Servant de stockage"],
+["Où ranger les dossiers lourds ?","En bas","En haut","Sur l’armoire"]]},
+{t:"RETOURS & QUALITÉ",c:"86412",i:[["↩️","Retour"],["🔍","Contrôle"],["🏷️","Non-conforme"],["🧴","Produit abîmé"],["📊","Rapport"]],q:[
+["Colis abîmé à la réception ?","Émettre des réserves sur le bon","Signer sans regarder","Le jeter"],
+["Produit non conforme ?","L’isoler et l’étiqueter","Le remettre en rayon","Le mélanger au stock"],
+["Produit qui fuit ?","Gants, baliser, lire la FDS","L’essuyer à mains nues","L’ignorer"],
+["Ouvrir un carton scotché ?","Cutter à lame rétractable","Couteau sans protection","Avec les dents"],
+["Incident constaté ?","Le déclarer","Le taire","Attendre"]]},
+{t:"ÉVACUATION",c:"94057",i:[["🚨","Alarme"],["🏃","Évacuation"],["📍","Point de rassemblement"],["👥","Appel"],["🩹","Secours"]],q:[
+["Quand l’alarme retentit ?","Évacuer calmement","Finir son travail","Chercher ses affaires"],
+["Pendant une évacuation ?","Escaliers, jamais l’ascenseur","L’ascenseur","Courir partout"],
+["Une fois dehors ?","Aller au point de rassemblement","Rentrer","Partir chez soi"],
+["Lors de l’appel ?","Répondre au responsable","Partir","Retourner chercher quelqu’un"],
+["Collègue blessé ?","Alerter les secours, ne pas le déplacer","Le déplacer vite","L’ignorer"]]}
+];
 
-function addBox(cx, cy, cz, w, h, d, color) {
-  const x0=cx-w/2, x1=cx+w/2, y0=cy, y1=cy+h, z0=cz-d/2, z1=cz+d/2;
-  const faces = [
-    { pts:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]], color:shade(color,1.20) },
-    { pts:[[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]], color:shade(color,0.95) },
-    { pts:[[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]], color:shade(color,0.60) },
-    { pts:[[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]], color:shade(color,0.78) },
-    { pts:[[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], color:shade(color,0.70) },
-  ];
-  sceneObjects.push({ faces });
-}
-function addWall(x0, x1, z0, z1) { walls.push({ x0, x1, z0, z1 }); }
+const EXP=[
+["Un extincteur doit rester visible et accessible en permanence, jamais caché ni bloqué.","On contrôle le nombre de colis et leur état avant de signer.","Le chauffeur signe le registre : on sait qui est sur le site.","Le balisage au sol protège les piétons pendant le déchargement.","Le registre de sécurité garde la trace des dates de vérification."],
+["Fourches basses (environ 15 cm) : meilleure stabilité et meilleure visibilité.","Dépasser la capacité fait basculer le chariot : on ne soulève pas.","Le piéton est toujours prioritaire : on s’arrête.","L’arrière et les côtés sont les zones les moins visibles du cariste.","On vérifie freins, direction et avertisseurs avant chaque prise de poste."],
+["Gants, chaussures de sécurité et gilet protègent des coupures, chutes et chocs.","Jambes fléchies et dos droit protègent le dos.","Une étiquette mal lue entraîne une erreur de préparation ou de livraison.","La ligne jaune délimite la voie réservée aux piétons.","La Fiche de Données de Sécurité indique les risques et les précautions."],
+["Une charge équilibrée sur les essieux garde le camion stable et dans la limite légale.","Les sangles empêchent les palettes de glisser ou de tomber en route.","Dépasser le PTAC est interdit : on répartit sur deux camions.","Des signaux clairs et convenus évitent les accidents pendant la manœuvre.","Un chargement instable peut tomber à l’ouverture des portes ou en route."],
+["La consignation coupe l’énergie, verrouille et vérifie l’absence de tension.","Le travail en hauteur exige un équipement conforme, jamais un support improvisé.","Une fuite est glissante et polluante : on balise et on signale.","Gants et lunettes protègent les mains et les yeux.","On n’improvise jamais : on demande la procédure."],
+["Une pile trop haute s’effondre : on respecte une hauteur stable.","Une pile se déplace avec un chariot adapté, pas à la main.","Une palette cassée est un danger : elle part au rebut.","Une zone dédiée évite d’encombrer allées et issues.","La rotation permet de contrôler l’état des palettes."],
+["L’accès au tableau électrique doit rester libre en cas d’urgence.","Des produits incompatibles peuvent réagir violemment : on les sépare.","Le permis de feu encadre les travaux par point chaud.","L’eau conduit l’électricité : sur un feu électrique, on utilise du CO2.","On alerte d’abord, puis on n’agit que si c’est sans danger."],
+["Le haut de l’écran au niveau des yeux évite les douleurs de nuque.","Les câbles au sol provoquent des chutes : on les range ou on les protège.","Des pauses régulières reposent les yeux et le dos.","Une issue de secours doit toujours être dégagée et utilisable.","Les dossiers lourds se rangent en bas pour éviter chutes et efforts dangereux."],
+["Les réserves sur le bon protègent l’entreprise en cas de dommage pendant le transport.","Isoler et étiqueter évite qu’un produit non conforme reparte chez le client.","On se protège avec des gants, on balise et on lit la FDS.","Le cutter à lame rétractable limite les risques de coupure.","Déclarer l’incident permet d’en éviter d’autres."],
+["On évacue calmement, sans rien reprendre.","L’ascenseur est interdit en évacuation : il peut se bloquer.","Le point de rassemblement permet de vérifier que tout le monde est sorti.","On répond à l’appel pour ne pas faire chercher quelqu’un déjà dehors.","Bouger un blessé peut aggraver ses blessures : on alerte les secours."]
+];
 
-function buildScene() {
-  sceneObjects = []; walls = []; groundMarks = [];
-
-  sceneObjects.push({ faces:[{ pts:[[-25,0,-20],[25,0,-20],[25,0,15],[-25,0,15]], color:'#3a4759' }]});
-
-  addBox(0, 0, -20.2, 50, 6, 0.4, 0x2c3a4f);
-  addBox(-25.2, 0, -2, 0.4, 6, 36, 0x2c3a4f);
-  addBox(25.2, 0, -2, 0.4, 6, 36, 0x2c3a4f);
-  addWall(-25.4, -24.8, -20, 15);
-  addWall(24.8, 25.4, -20, 15);
-  addWall(-25, 25, -20.4, -19.8);
-
-  // Camion
-  addBox(-12, 0.5, -16, 6, 3, 4, 0x4a5568);
-  addBox(-15, 0.5, -16, 0.3, 3, 4, 0x3a4556);
-  addBox(-9, 0.5, -16, 0.3, 3, 4, 0x3a4556);
-  addBox(-12, 3.5, -16, 6, 0.2, 4, 0x2d3542);
-  addBox(-12, 0.5, -14, 6, 0.15, 0.2, 0x8a6d3b);
-  addWall(-15.2, -14.8, -18, -14);
-  addWall(-9.2, -8.8, -18, -14);
-
-  // Palette dans le camion
-  addBox(-12, 0.65, -16, 1.8, 0.15, 1.4, 0x8a5a2b);
-  addBox(-12, 0.8, -16, 1.4, 1.0, 1.1, 0xc9a97a);
-
-  // Convoyeur
-  addBox(10, 0, -8, 4, 0.8, 3, 0x4a5568);
-  addBox(10, 0.8, -8, 4, 0.15, 3, 0x2d3542);
-  for (let i=0;i<5;i++) addBox(8.5+i*0.7, 0.9, -8, 0.4, 0.1, 2.8, 0x6b7280);
-  groundMarks.push({ x:10, z:-6, w:5, d:3, color:'rgba(34,197,94,0.35)', border:'rgba(74,222,128,0.8)', label:'DÉPOSE ICI' });
-  addWall(7.8, 12.2, -9.7, -6.3);
-
-  groundMarks.push({ x:0, z:6, w:4, d:3, color:'rgba(251,191,36,0.2)', border:'rgba(251,191,36,0.6)', label:'DÉPART' });
-
-  [[-20,-5],[20,-5],[-20,5],[20,5]].forEach(([x,z]) => {
-    addBox(x, 0, z, 1.8, 0.2, 1.4, 0x8a5a2b);
-    addBox(x, 0.2, z, 1.4, 1.0, 1.1, 0xc9a97a);
-    addWall(x-0.9, x+0.9, z-0.7, z+0.7);
-  });
-}
-
-// ============ CHARIOT ============
-const forklift = {
-  x: 0, z: 6, angle: Math.PI, speed: 0, maxSpeed: 4.5,
-  forkHeight: 0, forkMax: 2.5, carrying: false,
-  lastHornTime: -10, reversePenaltyGiven: false,
-  highForkPenalty: false, speedPenalty: false
+// ===== MUSIQUE (fichier choisi par le joueur) =====
+const mus=new Audio();mus.loop=true;mus.volume=.5;
+function pickMusic(){document.getElementById("mf").click()}
+document.getElementById("mf").onchange=e=>{
+ const f=e.target.files[0];if(!f)return;
+ mus.src=URL.createObjectURL(f);mus.play().catch(()=>{});
+ document.querySelector(".mu").textContent="🎵 "+f.name.slice(0,28);
 };
-
-// ============ ÉTAT ============
-const state = { running:false, difficulty:null, score:0, errors:0, phase:'pickup', timeLeft:300, clock:null };
-
-const timerEl = document.getElementById('timer');
-const scoreEl = document.getElementById('score');
-const errorsEl = document.getElementById('errors');
-const objectiveEl = document.getElementById('objective');
-const feedbackEl = document.getElementById('feedback');
-const btnActionEl = document.getElementById('btnAction');
-
-function updateHUD() {
-  const m = Math.floor(state.timeLeft/60), s = state.timeLeft%60;
-  timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  scoreEl.textContent = state.score;
-  errorsEl.textContent = `Erreurs : ${state.errors}`;
-}
-function showFeedback(text, type='info', duration=1400) {
-  feedbackEl.textContent = text;
-  feedbackEl.className = `show ${type}`;
-  setTimeout(() => feedbackEl.classList.remove('show'), duration);
-}
-function addError(reason) {
-  state.errors++;
-  sfxError();
-  showFeedback(`⚠ ${reason}`, 'ko', 1800);
-  updateHUD();
-  if (state.difficulty === 'strict' && state.errors >= 3) endGame(false);
-}
-function addScore(pts) { state.score += pts; updateHUD(); }
-
-document.getElementById('diffFacile').onclick = () => startGame('facile');
-document.getElementById('diffStrict').onclick = () => startGame('strict');
-
-function startGame(diff) {
-  initAudio();
-  startEngine();
-  state.difficulty = diff;
-  state.running = true;
-  document.getElementById('intro').style.display = 'none';
-  buildScene();
-  updateHUD();
-  objectiveEl.textContent = 'Prendre la palette dans le camion';
-  state.clock = setInterval(() => {
-    if (!state.running) return;
-    state.timeLeft--;
-    updateHUD();
-    if (state.timeLeft <= 0) endGame(false);
-  }, 1000);
+function toggleMusic(){
+ if(!mus.src){pickMusic();return}
+ if(mus.paused)mus.play();else mus.pause();
+ document.getElementById("mt").textContent=mus.paused?"🔇":"🎵";
 }
 
-// ============ ENTRÉES ============
-const joystickEl = document.getElementById('joystick');
-const stickEl = document.getElementById('stick');
-let joyVX = 0, joyVY = 0, joyActive = false, joyStart = { x:0, y:0 };
+// ===== MOTEUR =====
+const $=id=>document.getElementById(id);
+let si=0,score=0,done=[],got=[],cur=0,entry="";
+const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const POS=[[18,22],[32,48],[58,28],[72,58],[82,32]];
 
-function onJoyStart(cx, cy) {
-  joyActive = true;
-  const r = joystickEl.getBoundingClientRect();
-  joyStart = { x: r.left + r.width/2, y: r.top + r.height/2 };
-  updateJoy(cx, cy);
+function setScore(){$("sc").textContent=score}
+function load(){
+ const s=S[si];done=[];got=[];
+ $("st").textContent="SCÈNE "+(si+1)+"/10 : "+s.t;
+ $("ob").textContent="Inspecte les 5 indices";
+ $("cb").innerHTML=[0,1,2,3,4].map(i=>'<div class="cs" id="sl'+i+'"></div>').join("");
+ let h="";
+ s.i.forEach((x,k)=>{h+='<div class="ob" style="left:'+POS[k][0]+'%;top:'+POS[k][1]+'%" onclick="openQuiz('+k+')"><div class="ci" id="ic'+k+'">'+x[0]+'</div><div class="lb" id="lb'+k+'">'+x[1]+'</div></div>'});
+ h+='<div class="ob" style="left:50%;top:84%" onclick="openLock()"><div class="ci">🔒</div><div class="lb">Porte de sortie</div></div>';
+ $("scene").innerHTML=h;
+ setScore();
 }
-function onJoyMove(cx, cy) { if (joyActive) updateJoy(cx, cy); }
-function onJoyEnd() { joyActive = false; joyVX = 0; joyVY = 0; stickEl.style.transform = 'translate(-50%,-50%)'; }
-function updateJoy(x, y) {
-  const dx = x - joyStart.x, dy = y - joyStart.y;
-  const max = 55, dist = Math.min(Math.hypot(dx, dy), max);
-  const ang = Math.atan2(dy, dx);
-  const sx = Math.cos(ang)*dist, sy = Math.sin(ang)*dist;
-  stickEl.style.transform = `translate(calc(-50% + ${sx}px), calc(-50% + ${sy}px))`;
-  joyVX = sx/max; joyVY = sy/max;
+function P(h){$("pb").innerHTML=h;$("panel").classList.add("s")}
+function closeP(){$("panel").classList.remove("s")}
+
+function openQuiz(k){
+ snd("click");
+ cur=k;
+ const d=S[si].q[k],o=shuf([[d[1],1],[d[2],0],[d[3],0]]);
+ let h='<div class="tag">QUIZ '+(k+1)+'/5</div><h2>'+d[0]+'</h2>';
+ if(done[k]){
+  h+='<div class="fb ok s">'+EXP[si][k]+'<b>Chiffre : '+S[si].c[k]+'</b></div>';
+ }else{
+  o.forEach(x=>{h+='<button class="qo" data-k="'+x[1]+'">'+x[0]+'</button>'});
+  h+='<div class="fb" id="fb"></div>';
+ }
+ h+='<button class="btn bs" onclick="closeP()">FERMER</button>';
+ P(h);
+ document.querySelectorAll(".qo").forEach(b=>b.onclick=()=>ans(b));
 }
-joystickEl.addEventListener('touchstart', e => { e.preventDefault(); onJoyStart(e.touches[0].clientX, e.touches[0].clientY); }, { passive:false });
-joystickEl.addEventListener('touchmove', e => { e.preventDefault(); onJoyMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive:false });
-joystickEl.addEventListener('touchend', onJoyEnd);
-joystickEl.addEventListener('mousedown', e => onJoyStart(e.clientX, e.clientY));
-window.addEventListener('mousemove', e => onJoyMove(e.clientX, e.clientY));
-window.addEventListener('mouseup', onJoyEnd);
-
-let forkUpPressed = false, forkDownPressed = false;
-function bindHold(el, on, off) {
-  el.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive:false });
-  el.addEventListener('touchend', off);
-  el.addEventListener('mousedown', e => { e.preventDefault(); on(); });
-  el.addEventListener('mouseup', off);
-  el.addEventListener('mouseleave', off);
-}
-bindHold(document.getElementById('btnUp'), () => forkUpPressed = true, () => forkUpPressed = false);
-bindHold(document.getElementById('btnDown'), () => forkDownPressed = true, () => forkDownPressed = false);
-
-document.getElementById('btnHorn').addEventListener('click', () => {
-  if (!state.running) return;
-  sfxHorn();
-  forklift.lastHornTime = performance.now() / 1000;
-});
-
-btnActionEl.addEventListener('click', () => { if (state.running) handleAction(); });
-
-// ============ LOGIQUE ============
-function handleAction() {
-  if (state.phase === 'pickup') {
-    const dist = Math.hypot(forklift.x - (-12), forklift.z - (-14.5));
-    if (dist < 3.0 && forklift.forkHeight >= 0.4 && forklift.forkHeight <= 1.2) {
-      forklift.carrying = true;
-      state.phase = 'carry';
-      objectiveEl.textContent = '✓ Palette prise — Déposer sur le convoyeur (zone verte)';
-      objectiveEl.classList.add('done');
-      addScore(100); sfxSuccess();
-      showFeedback('✓ PALETTE PRISE', 'ok');
-    } else if (dist >= 3.0) {
-      showFeedback('Trop loin (' + dist.toFixed(1) + 'm)', 'info');
-    } else {
-      showFeedback('Fourches entre 0,4 et 1,2 m', 'info');
-    }
-    return;
-  }
-  if (state.phase === 'carry') {
-    const dist = Math.hypot(forklift.x - 10, forklift.z - (-6));
-    if (dist < 3.0 && forklift.forkHeight <= 0.3) {
-      forklift.carrying = false;
-      state.phase = 'done';
-      objectiveEl.textContent = '✓ Palette déposée';
-      addScore(200); sfxSuccess();
-      showFeedback('✓ MISSION RÉUSSIE', 'ok', 2200);
-      setTimeout(() => endGame(true), 2400);
-    } else if (dist >= 3.0) {
-      showFeedback('Zone verte (' + dist.toFixed(1) + 'm)', 'info');
-    } else {
-      showFeedback('Descendez les fourches', 'info');
-    }
-  }
+function ans(b){
+ if(done[cur])return;
+ const fb=$("fb");
+ if(b.dataset.k==="1"){
+  b.classList.add("ok");done[cur]=1;
+  const dg=S[si].c[cur];got[cur]=dg;
+  const sl=$("sl"+cur);sl.textContent=dg;sl.classList.add("f");
+  $("ic"+cur).classList.add("d");$("lb"+cur).classList.add("d");
+  score+=100;setScore();snd("ok");
+  document.querySelectorAll(".qo").forEach(x=>x.disabled=true);
+  fb.className="fb ok s";fb.innerHTML="✔ Bonne réponse ! "+EXP[si][cur]+"<b>Chiffre du code : "+dg+"</b>";
+  if(done.filter(Boolean).length===5)$("ob").textContent="Indices trouvés : va à la porte 🔒";
+ }else{
+  b.classList.add("ko");b.disabled=true;
+  score=Math.max(0,score-20);setScore();snd("ko");
+  fb.className="fb ko s";fb.textContent="Mauvaise réponse (−20). Réessaie.";
+ }
 }
 
-function checkActionAvail() {
-  if (!state.running) return;
-  let ok = false;
-  if (state.phase === 'pickup') {
-    const d = Math.hypot(forklift.x - (-12), forklift.z - (-14.5));
-    ok = d < 3.0 && forklift.forkHeight >= 0.4 && forklift.forkHeight <= 1.2;
-  } else if (state.phase === 'carry') {
-    const d = Math.hypot(forklift.x - 10, forklift.z - (-6));
-    ok = d < 3.0 && forklift.forkHeight <= 0.3;
-  }
-  btnActionEl.classList.toggle('active', ok);
+function renderLock(er){
+ const d=[0,1,2,3,4].map(i=>"<span>"+(entry[i]||"")+"</span>").join("");
+ const hint=[0,1,2,3,4].map(i=>got[i]||"_").join(" ");
+ const kp=[1,2,3,4,5,6,7,8,9].map(n=>'<button onclick="key('+n+')">'+n+'</button>').join("")+'<button class="c" onclick="key(\'C\')">C</button><button onclick="key(0)">0</button><button class="k" onclick="key(\'OK\')">OK</button>';
+ P('<div class="tag">PORTE DE SORTIE</div><h2>Entre le code à 5 chiffres</h2><div class="cd'+(er?" er":"")+'">'+d+'</div><div class="hint">Chiffres trouvés : '+hint+'</div><div class="kp">'+kp+'</div><button class="btn bs" onclick="closeP()">FERMER</button>');
 }
-
-// ============ UPDATE ============
-function updateForklift(dt) {
-  const forward = -joyVY, turn = joyVX;
-  forklift.speed += (forward * forklift.maxSpeed - forklift.speed) * Math.min(1, dt * 6);
-  if (Math.abs(forklift.speed) > 0.1) {
-    forklift.angle += turn * dt * 2.5 * (forklift.speed > 0 ? 1 : -1);
-  }
-  if (forklift.speed < -0.5) {
-    const now = performance.now() / 1000;
-    if (now - forklift.lastHornTime > 3 && !forklift.reversePenaltyGiven) {
-      addError('Klaxon obligatoire en marche arrière');
-      forklift.reversePenaltyGiven = true;
-    }
-  } else forklift.reversePenaltyGiven = false;
-
-  if (Math.abs(forklift.speed) > 1.5 && forklift.forkHeight > 0.5 && !forklift.carrying && !forklift.highForkPenalty) {
-    forklift.highForkPenalty = true;
-    addError('Fourches hautes en déplacement');
-  }
-  if (forklift.forkHeight <= 0.3) forklift.highForkPenalty = false;
-
-  if (Math.abs(forklift.speed) > 5.5) {
-    if (!forklift.speedPenalty) { forklift.speedPenalty = true; addError('Vitesse excessive'); }
-  } else forklift.speedPenalty = false;
-
-  const nx = forklift.x + Math.sin(forklift.angle) * forklift.speed * dt;
-  const nz = forklift.z - Math.cos(forklift.angle) * forklift.speed * dt;
-  if (!collides(nx, forklift.z)) forklift.x = nx; else forklift.speed = 0;
-  if (!collides(forklift.x, nz)) forklift.z = nz; else forklift.speed = 0;
-
-  if (forkUpPressed) forklift.forkHeight = Math.min(forklift.forkMax, forklift.forkHeight + dt * 1.2);
-  if (forkDownPressed) forklift.forkHeight = Math.max(0, forklift.forkHeight - dt * 1.2);
-
-  setEngineSpeed(forklift.speed);
-
-  const camDist = 8, camHeight = 5;
-  cam.x = forklift.x - Math.sin(forklift.angle) * camDist;
-  cam.z = forklift.z + Math.cos(forklift.angle) * camDist;
-  cam.y = camHeight;
-  cam.yaw = forklift.angle;
-
-  checkActionAvail();
+function openLock(){snd("click");entry="";renderLock()}
+function key(k){
+ snd("click");
+ if(k==="C"){entry="";renderLock();return}
+ if(k==="OK"){
+  if(entry===S[si].c){
+   snd("sniper");score+=200;setScore();closeP();
+   if(si===9){$("egt").textContent="Score final : "+score+" / 7000";$("eg").classList.remove("hid")}
+   else{$("esd").textContent="Scène "+(si+1)+" terminée. Score : "+score;$("es").classList.remove("hid")}
+  }else{snd("ko");entry="";renderLock(true)}
+  return;
+ }
+ if(entry.length<5){entry+=k;renderLock()}
 }
-
-function collides(x, z) {
-  const r = 1.0;
-  for (const w of walls) if (x+r > w.x0 && x-r < w.x1 && z+r > w.z0 && z-r < w.z1) return true;
-  if (x < -24.5 || x > 24.5 || z < -19.5 || z > 14.5) return true;
-  return false;
-}
-
-// ============ DESSIN ============
-function drawBox3D(cx, cy, cz, w, h, d, color, zOffset) {
-  const x0=cx-w/2, x1=cx+w/2, y0=cy, y1=cy+h;
-  const z0=cz-d/2+(zOffset||0), z1=cz+d/2+(zOffset||0);
-  const faces = [
-    { pts:[[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]], color:shade(color,1.15), zc:cz },
-    { pts:[[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]], color:shade(color,0.95), zc:z1 },
-    { pts:[[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]], color:shade(color,0.62), zc:z0 },
-    { pts:[[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]], color:shade(color,0.78), zc:cz },
-    { pts:[[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], color:shade(color,0.72), zc:cz },
-  ];
-  const proj = faces.map(f => ({ pts: f.pts.map(p => project(p[0],p[1],p[2])), color: f.color, z: f.zc }))
-    .sort((a,b) => b.z - a.z);
-  for (const f of proj) {
-    ctx.beginPath();
-    ctx.moveTo(f.pts[0].x, f.pts[0].y);
-    for (let i=1;i<f.pts.length;i++) ctx.lineTo(f.pts[i].x, f.pts[i].y);
-    ctx.closePath();
-    ctx.fillStyle = f.color; ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.5; ctx.stroke();
-  }
-}
-
-function drawForklift() {
-  const fx = forklift.x, fz = forklift.z;
-  const a = forklift.angle, cosA = Math.cos(a), sinA = Math.sin(a);
-  function local(lx, ly, lz) {
-    return { x: fx + lx*cosA + lz*sinA, y: ly, z: fz - lx*sinA + lz*cosA };
-  }
-  const body = local(0, 0.6, 0);
-  drawBox3D(body.x, body.y, body.z, 1.6, 1.2, 2.2, 0xd97706);
-  const cabin = local(0, 1.8, -0.3);
-  drawBox3D(cabin.x, cabin.y, cabin.z, 1.2, 1.2, 1.2, 0x1e293b);
-  const mast1 = local(0.7, 1.3, 1.0);
-  drawBox3D(mast1.x, mast1.y, mast1.z, 0.15, 2.6, 0.15, 0x374151);
-  const mast2 = local(-0.7, 1.3, 1.0);
-  drawBox3D(mast2.x, mast2.y, mast2.z, 0.15, 2.6, 0.15, 0x374151);
-  const fy = 0.2 + forklift.forkHeight;
-  const fb = local(0, fy, 1.4);
-  drawBox3D(fb.x, fb.y, fb.z, 0.9, 0.1, 1.2, 0x9ca3af);
-  const fl = local(0.4, fy, 1.6);
-  drawBox3D(fl.x, fl.y, fl.z, 0.15, 0.1, 1.0, 0x9ca3af);
-  const fr = local(-0.4, fy, 1.6);
-  drawBox3D(fr.x, fr.y, fr.z, 0.15, 0.1, 1.0, 0x9ca3af);
-  if (forklift.carrying) {
-    const p = local(0, fy + 0.15, 1.6);
-    drawBox3D(p.x, p.y, p.z, 1.6, 0.15, 1.2, 0x8a5a2b);
-    drawBox3D(p.x, p.y + 0.15, p.z, 1.3, 0.9, 1.0, 0xc9a97a);
-  }
-  [[0.8,0.7],[-0.8,0.7],[0.8,-0.7],[-0.8,-0.7]].forEach(([lx,lz]) => {
-    const w = local(lx, 0.35, lz);
-    drawBox3D(w.x, w.y, w.z, 0.3, 0.6, 0.6, 0x111827);
-  });
-}
-
-function drawGroundMarks() {
-  for (const m of groundMarks) {
-    const c = [
-      {x:m.x-m.w/2, z:m.z-m.d/2}, {x:m.x+m.w/2, z:m.z-m.d/2},
-      {x:m.x+m.w/2, z:m.z+m.d/2}, {x:m.x-m.w/2, z:m.z+m.d/2}
-    ];
-    const pts = c.map(p => project(p.x, 0.02, p.z));
-    if (pts.every(p => p.z < 0.1)) continue;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.closePath();
-    ctx.fillStyle = m.color; ctx.fill();
-    if (m.border) { ctx.strokeStyle = m.border; ctx.lineWidth = 2; ctx.stroke(); }
-    if (m.label) {
-      const p = project(m.x, 0.05, m.z);
-      ctx.fillStyle = m.border || m.color;
-      ctx.font = 'bold 11px Courier New';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(m.label, p.x, p.y);
-    }
-  }
-}
-
-function render() {
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'#1a2535'); grad.addColorStop(1,'#0a1018');
-  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
-
-  const all = [];
-  for (const obj of sceneObjects) {
-    for (const f of obj.faces) {
-      const pts = f.pts.map(p => project(p[0],p[1],p[2]));
-      if (pts.every(p => p.z < 0.1)) continue;
-      const cz = f.pts.reduce((s,p)=>s+p[2],0)/4;
-      all.push({ pts, color: f.color, z: cz });
-    }
-  }
-  all.sort((a,b) => b.z - a.z);
-  for (const f of all) {
-    ctx.beginPath();
-    ctx.moveTo(f.pts[0].x, f.pts[0].y);
-    for (let i=1;i<f.pts.length;i++) ctx.lineTo(f.pts[i].x, f.pts[i].y);
-    ctx.closePath();
-    ctx.fillStyle = f.color; ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 0.5; ctx.stroke();
-  }
-  drawGroundMarks();
-  if (state.running) drawForklift();
-
-  const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.4, W/2, H/2, Math.max(W,H)*0.75);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.6)');
-  ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
-}
-
-// ============ FIN ============
-function endGame(win) {
-  state.running = false;
-  clearInterval(state.clock);
-  if (engineGain) engineGain.gain.value = 0;
-  const title = document.getElementById('bilanTitle');
-  const stats = document.getElementById('bilanStats');
-  title.textContent = win ? '✓ MISSION RÉUSSIE' : '✗ MISSION ÉCHOUÉE';
-  title.className = win ? '' : 'fail';
-  const m = Math.floor(state.timeLeft/60), s = state.timeLeft%60;
-  stats.innerHTML = `Score : <strong style="color:#4ade80">${state.score} pts</strong><br>
-    Erreurs : <strong style="color:#f87171">${state.errors}</strong><br>
-    Temps restant : <strong>${m}:${String(s).padStart(2,'0')}</strong><br>
-    Difficulté : <strong>${state.difficulty === 'facile' ? 'Facile' : 'Strict'}</strong>`;
-  document.getElementById('bilan').classList.add('show');
-}
-
-// ============ BOUCLE ============
-let last = performance.now();
-function loop(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  if (state.running) updateForklift(dt);
-  render();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
+function startGame(){initAudio();$("intro").classList.add("hid");si=0;score=0;load()}
+function nextScene(){$("es").classList.add("hid");si++;load()}
 </script>
 </body>
 </html>
